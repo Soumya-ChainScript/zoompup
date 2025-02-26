@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Join Zoom Meeting</title>
+    <script src="https://source.zoom.us/2.11.1/zoom-meeting-2.11.1.min.js"></script>
+    <link rel="stylesheet" href="https://source.zoom.us/2.11.1/css/bootstrap.css">
+    <link rel="stylesheet" href="https://source.zoom.us/2.11.1/css/react-select.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 50px;
+        }
+        #zmmtg-root {
+            width: 80%;
+            margin: 0 auto;
+            height: 600px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Join Zoom Meeting</h1>
+    <div id="zmmtg-root"></div>
+    <script>
+        const meetingId = new URLSearchParams(window.location.search).get("meetingId");
+        const password = new URLSearchParams(window.location.search).get("password");
+        const name = new URLSearchParams(window.location.search).get("name");
+
+        if (!meetingId || !password || !name) {
+            alert("Missing meeting ID, password, or name in the URL");
+        } else {
+            const zoomMeetingSDK = ZoomMtg;
+
+            zoomMeetingSDK.preLoadWasm();
+            zoomMeetingSDK.prepareJssdk();
+
+            zoomMeetingSDK.init({
+                leaveUrl: window.location.href,
+                isSupportAV: true,
+                success: function () {
+                    zoomMeetingSDK.join({
+                        meetingNumber: meetingId,
+                        userName: name,
+                        signature: generateSignature(meetingId, name),
+                        apiKey: "YOUR_ZOOM_SDK_API_KEY",  // Replace with your Zoom API Key
+                        userEmail: "user@example.com",    // Replace with user email
+                        passWord: password,
+                        success: function (res) {
+                            console.log("Joined successfully", res);
+                        },
+                        error: function (error) {
+                            console.error("Error joining the meeting", error);
+                        }
+                    });
+                },
+                error: function (error) {
+                    console.error("Error initializing the Zoom SDK", error);
+                }
+            });
+
+            function generateSignature(meetingNumber, name) {
+                return "your_generated_signature_here";  // Replace this with the actual signature generated server-side
+            }
+        }
+    </script>
+</body>
+</html>
