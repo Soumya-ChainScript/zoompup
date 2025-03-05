@@ -1,44 +1,130 @@
-<script>
-    window.onload = function () {
-        if (!window.ZoomMtg) {
-            console.error("Zoom SDK failed to load.");
-            return;
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Join Zoom Meeting</title>
+
+    <!-- Load React and ReactDOM -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+
+    <!-- Load Zoom SDK Dependencies -->
+    <script src="https://source.zoom.us/3.11.2/lib/vendor/lodash.min.js"></script>
+    <script src="https://source.zoom.us/3.11.2/lib/vendor/redux.min.js"></script>
+    <script src="https://source.zoom.us/3.11.2/lib/vendor/redux-thunk.min.js"></script>
+
+    <!-- Load Zoom Embedded Meeting SDK -->
+    <script src="https://source.zoom.us/3.11.2/zoom-meeting-embedded-3.11.2.min.js"></script>
+
+    <!-- Load jsrsasign for JWT generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsrsasign/8.0.20/jsrsasign-all-min.js"></script>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 20px;
+        }
+        #meetingSDKElement {
+            width: 100%;
+            height: 500px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Zoom Meeting Embed</h1>
+    <button id="joinMeetingBtn" onclick="startMeeting()">Join Zoom Meeting</button>
+
+
+    <div id="meetingSDKElement"></div>
+
+    <script>
+        function getUrlParameter(name) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(name) || "";
         }
 
-        const meetingId = new URLSearchParams(window.location.search).get("meetingId");
-        const password = new URLSearchParams(window.location.search).get("password");
-        const name = new URLSearchParams(window.location.search).get("name");
+        const clientId = getUrlParameter("clientId");
+        const clientSecret = getUrlParameter("clientSecret"); // Needed for JWT generation
+        const meetingNumber = getUrlParameter("meetingId");
+        const userName = getUrlParameter("username") || "Guest";
+        const userEmail = getUrlParameter("email") || "guest@example.com";
+        const passWord = getUrlParameter("password");
+        let jwtToken = getUrlParameter("jwtToken");
 
-        if (!meetingId || !password || !name) {
-            alert("Missing meeting ID, password, or name in the URL");
-            return;
-        }
+       function generateSignature() {
+    if (!clientId || !clientSecret || !meetingNumber) {
+        console.error("Missing Client ID, Client Secret, or Meeting ID.");
+        alert("Cannot generate JWT. Required parameters missing.");
+        return null;
+    }
 
-        ZoomMtg.preLoadWasm();
-        ZoomMtg.prepareJssdk();
+    const iat = Math.floor(Date.now() / 1000);
+    const exp = iat + 60 * 60 * 2; // Token valid for 2 hours
 
-        ZoomMtg.init({
-            leaveUrl: window.location.href,
-            isSupportAV: true,
-            success: function () {
-                ZoomMtg.join({
-                    meetingNumber: meetingId,
-                    userName: name,
-                    signature: "your_generated_signature_here",  // Replace with your actual signature
-                    apiKey: "YOUR_ZOOM_SDK_API_KEY",
-                    userEmail: "user@example.com",
-                    passWord: password,
-                    success: function (res) {
-                        console.log("Joined successfully", res);
-                    },
-                    error: function (error) {
-                        console.error("Error joining the meeting", error);
-                    }
-                });
-            },
-            error: function (error) {
-                console.error("Error initializing the Zoom SDK", error);
-            }
-        });
+    const header = { alg: "HS256", typ: "JWT" };
+    const payload = {
+        sdkKey: clientId,
+        mn: meetingNumber,
+        role: 0,
+        iat: iat,
+        exp: exp,
+        tokenExp: exp
     };
-</script>
+
+    return KJUR.jws.JWS.sign("HS256", JSON.stringify(header), JSON.stringify(payload), clientSecret);
+}
+
+
+        function startMeeting() {
+	document.getElementById("joinMeetingBtn").setAttribute("inert", "true");
+            if (!window.ZoomMtgEmbedded) {
+                console.error("Zoom SDK not loaded.");
+                alert("Zoom SDK failed to load. Please refresh.");
+                return;
+            }
+
+            if (!jwtToken) {
+                console.warn("JWT Token not provided, generating one...");
+                jwtToken = generateSignature();
+		console.log(jwtToken);
+		console.log(meetingNumber);
+		console.log(clientId);
+		console.log(clientSecret);
+		console.log(userName);
+		console.log(passWord);
+                if (!jwtToken) {
+                    return;
+                }
+            }
+
+            const meetingSDKElement = document.getElementById("meetingSDKElement");
+            const client = ZoomMtgEmbedded.createClient();
+
+            client.init({
+                debug: true,
+                zoomAppRoot: meetingSDKElement,
+                language: "en-US",
+            }).then(() => {
+                client.join({
+                    sdkKey: clientId,
+                    signature: jwtToken,
+                    meetingNumber: meetingNumber,
+                    userName: userName,
+                    userEmail: userEmail,
+                    passWord: passWord,
+                }).then(() => {
+                    console.log("Joined meeting successfully");
+                }).catch(error => {
+                    console.error("Error joining meeting:", error);
+                });
+            }).catch(error => {
+                console.error("Error initializing Zoom SDK:", error);
+            });
+        }
+    </script>
+
+</body>
+</html>
