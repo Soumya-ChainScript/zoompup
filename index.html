@@ -57,7 +57,7 @@
         return;
       }
 
-      let zoomLink = `https://app.zoom.us/wc/${meetingId}/join?fromPWA=1&uname=${encodeURIComponent(name)}`;
+      let zoomLink = `https://app.zoom.us/wc/${meetingId}/join?fromPWA=1&prefer=1&browser=1&uname=${encodeURIComponent(name)}`;
       if (password) {
         zoomLink += `&pwd=${encodeURIComponent(password)}`;
       }
