@@ -1,130 +1,69 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Join Zoom Meeting</title>
-
-    <!-- Load React and ReactDOM -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
-
-    <!-- Load Zoom SDK Dependencies -->
-    <script src="https://source.zoom.us/3.11.2/lib/vendor/lodash.min.js"></script>
-    <script src="https://source.zoom.us/3.11.2/lib/vendor/redux.min.js"></script>
-    <script src="https://source.zoom.us/3.11.2/lib/vendor/redux-thunk.min.js"></script>
-
-    <!-- Load Zoom Embedded Meeting SDK -->
-    <script src="https://source.zoom.us/3.11.2/zoom-meeting-embedded-3.11.2.min.js"></script>
-
-    <!-- Load jsrsasign for JWT generation -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsrsasign/8.0.20/jsrsasign-all-min.js"></script>
-
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            text-align: center;
-            margin: 20px;
-        }
-        #meetingSDKElement {
-            width: 100%;
-            height: 500px;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Join Zoom Meeting</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      margin-top: 50px;
+    }
+    .container {
+      max-width: 300px;
+      margin: auto;
+      padding: 20px;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+    }
+    input {
+      width: 100%;
+      padding: 8px;
+      margin: 10px 0;
+    }
+    button {
+      background-color: blue;
+      color: white;
+      border: none;
+      padding: 10px;
+      width: 100%;
+      cursor: pointer;
+      border-radius: 5px;
+    }
+    button:hover {
+      background-color: darkblue;
+    }
+  </style>
 </head>
 <body>
+  <div class="container">
+    <h2>Join Zoom Meeting</h2>
+    <input type="text" id="meetingId" placeholder="Enter Meeting ID" />
+    <input type="text" id="name" placeholder="Enter your name" />
+    <input type="text" id="password" placeholder="Meeting password (optional)" />
+    <button onclick="joinMeeting()">Join Meeting</button>
+  </div>
 
-    <h1>Zoom Meeting Embed</h1>
-    <button id="joinMeetingBtn" onclick="startMeeting()">Join Zoom Meeting</button>
+  <script>
+    function joinMeeting() {
+      const meetingId = document.getElementById("meetingId").value.trim();
+      const name = document.getElementById("name").value.trim();
+      const password = document.getElementById("password").value.trim();
 
+      if (!meetingId || !name) {
+        alert("Please enter both Meeting ID and Name.");
+        return;
+      }
 
-    <div id="meetingSDKElement"></div>
+      let zoomLink = `https://app.zoom.us/wc/${meetingId}/join?fromPWA=1&uname=${encodeURIComponent(name)}`;
+      if (password) {
+        zoomLink += `&pwd=${encodeURIComponent(password)}`;
+      }
 
-    <script>
-        function getUrlParameter(name) {
-            const urlParams = new URLSearchParams(window.location.search);
-            return urlParams.get(name) || "";
-        }
-
-        const clientId = getUrlParameter("clientId");
-        const clientSecret = getUrlParameter("clientSecret"); // Needed for JWT generation
-        const meetingNumber = getUrlParameter("meetingId");
-        const userName = getUrlParameter("username") || "Guest";
-        const userEmail = getUrlParameter("email") || "guest@example.com";
-        const passWord = getUrlParameter("password");
-        let jwtToken = getUrlParameter("jwtToken");
-
-       function generateSignature() {
-    if (!clientId || !clientSecret || !meetingNumber) {
-        console.error("Missing Client ID, Client Secret, or Meeting ID.");
-        alert("Cannot generate JWT. Required parameters missing.");
-        return null;
+      window.location.href = zoomLink;
     }
-
-    const iat = Math.floor(Date.now() / 1000);
-    const exp = iat + 60 * 60 * 2; // Token valid for 2 hours
-
-    const header = { alg: "HS256", typ: "JWT" };
-    const payload = {
-        sdkKey: clientId,
-        mn: meetingNumber,
-        role: 0,
-        iat: iat,
-        exp: exp,
-        tokenExp: exp
-    };
-
-    return KJUR.jws.JWS.sign("HS256", JSON.stringify(header), JSON.stringify(payload), clientSecret);
-}
-
-
-        function startMeeting() {
-	document.getElementById("joinMeetingBtn").setAttribute("inert", "true");
-            if (!window.ZoomMtgEmbedded) {
-                console.error("Zoom SDK not loaded.");
-                alert("Zoom SDK failed to load. Please refresh.");
-                return;
-            }
-
-            if (!jwtToken) {
-                console.warn("JWT Token not provided, generating one...");
-                jwtToken = generateSignature();
-		console.log(jwtToken);
-		console.log(meetingNumber);
-		console.log(clientId);
-		console.log(clientSecret);
-		console.log(userName);
-		console.log(passWord);
-                if (!jwtToken) {
-                    return;
-                }
-            }
-
-            const meetingSDKElement = document.getElementById("meetingSDKElement");
-            const client = ZoomMtgEmbedded.createClient();
-
-            client.init({
-                debug: true,
-                zoomAppRoot: meetingSDKElement,
-                language: "en-US",
-            }).then(() => {
-                client.join({
-                    sdkKey: clientId,
-                    signature: jwtToken,
-                    meetingNumber: meetingNumber,
-                    userName: userName,
-                    userEmail: userEmail,
-                    passWord: passWord,
-                }).then(() => {
-                    console.log("Joined meeting successfully");
-                }).catch(error => {
-                    console.error("Error joining meeting:", error);
-                });
-            }).catch(error => {
-                console.error("Error initializing Zoom SDK:", error);
-            });
-        }
-    </script>
-
+  </script>
 </body>
 </html>
